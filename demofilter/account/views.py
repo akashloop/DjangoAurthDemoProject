@@ -23,6 +23,7 @@ from rest_framework import viewsets
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from demofilter.mixin import *
+from django.shortcuts import get_object_or_404
 
 class SignUpView(APIView):
     """
@@ -298,11 +299,16 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self,request,pk=None):  
-        obj=super().get_queryset().exclude(user_role__can_edit=False).get(id=pk)
-        serializer=self.get_serializer(obj,data=request.data)
+    def update(self, request, pk=None):
+        # Step 1: Apply filtering
+        queryset = super().get_queryset().exclude(user_role__can_edit=False)
+        obj = get_object_or_404(queryset, id=pk)
+        
+        # Step 2: Update the object using serializer
+        serializer = self.get_serializer(obj, data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
