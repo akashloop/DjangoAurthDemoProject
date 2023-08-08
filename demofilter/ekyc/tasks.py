@@ -23,8 +23,6 @@ def ocr_process(id):
             kyc_kyb_list.append(data.dob)
         parsed_text_value = responce["ParsedResults"][0]['ParsedText']
         parsed_lines = parsed_text_value.split('\r\n')
-        print("parsed_lines",parsed_lines)
-        print("kyc_kyb_list",kyc_kyb_list)
         for item in kyc_kyb_list:
             for data in kyc_kyb_data:
                 if data.doc_number in parsed_lines:
