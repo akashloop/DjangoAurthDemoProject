@@ -7,4 +7,5 @@ admin.site.register(User)
 admin.site.register(UserRoll)
 admin.site.register(UserPermissions)
 admin.site.register(UserRolePermissions)
+admin.site.register(Currency)
 

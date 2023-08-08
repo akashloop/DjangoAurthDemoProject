@@ -23,7 +23,6 @@ from rest_framework import viewsets
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from demofilter.mixin import *
-from django.shortcuts import get_object_or_404
 
 class SignUpView(APIView):
     """
@@ -176,7 +175,7 @@ class ResetPasswordView(APIView):
 
 class UserListView(OnlyMeMixin, viewsets.GenericViewSet, ListModelMixin, 
                 UpdateModelMixin,RetrieveModelMixin):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     queryset = User.objects.all().select_related(
             'user_roll',
             'organization',
@@ -273,7 +272,7 @@ class PermissionViewset(viewsets.GenericViewSet,ListModelMixin):
     def get_queryset(self):
         qs = super().get_queryset()
         return qs
-
+from django.shortcuts import get_object_or_404
 class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
     """
     url = /api/account/rolepermissions?user_role=3
@@ -299,6 +298,15 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
+    # def update(self,request,pk=None):  
+    #     obj=super().get_queryset().exclude(user_role__can_edit=False).get(id=pk)
+    #     serializer=self.get_serializer(obj,data=request.data)
+    #     if serializer.is_valid(raise_exception=True):
+    #         serializer.save()
+    #         return Response(serializer.data)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
     def update(self, request, pk=None):
         # Step 1: Apply filtering
         queryset = super().get_queryset().exclude(user_role__can_edit=False)
@@ -310,5 +318,4 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 

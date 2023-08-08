@@ -179,3 +179,17 @@ class UserRolePermissions(TimeStampedModel):
     def __str__(self):
         return str(self.permission_level)
 
+
+class Currency(TimeStampedModel):
+    currency = models.CharField(max_length=50,unique=True,db_index=True)
+    iso_code = models.CharField(max_length=3,unique=True,db_index=True)
+    symbol = models.CharField(max_length=10,unique=True)
+
+    class Meta:
+        verbose_name = "Currency"
+        verbose_name_plural = "Currencies"
+        db_table = "Currency"
+
+    def __str__(self):
+        return self.currency
+

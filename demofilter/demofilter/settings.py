@@ -45,6 +45,8 @@ CORE_APPS = [
 ]
 THIRDPARTY_APPS = [
     'account',
+    'ekyc',
+    'location',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
@@ -176,3 +178,11 @@ TEMPLATED_EMAIL_BACKEND = 'templated_email.backends.vanilla_django.TemplateBacke
 DEFAULT_FROM_EMAIL = 'loopakash7@gmail.com'  # Replace with your preferred default from email
 FRONTEND_URL = 'http://127.0.0.1:8000/'  # Replace with the URL of your frontend application
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
+
+# Celery Broker (Redis)
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+
+# Result Backend (Redis)
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
