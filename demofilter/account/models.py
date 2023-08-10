@@ -9,41 +9,141 @@ from django.db.models import Q, Value,Max,F
 from django_extensions.db.models import TimeStampedModel
 from django.contrib.auth.models import Permission
 from model_utils.fields import StatusField
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+
+# class UserManager(BaseUserManager):
+#     """
+#         Manager for :model:`account.User` extending from Base User Manager
+#     """
+#     use_in_migrations = True
+
+#     def _create_user(self, email, password, **extra_fields):
+#         """
+#         Create and save a user with the given email and password.
+
+#         Overrides the function from BaseUserManager
+#         """
+#         email = self.normalize_email(email)
+#         user = self.model(email=email, **extra_fields)
+#         user.set_password(password)
+#         user.save(using=self._db)
+#         return user
+
+#     def create_user(self, email, password=None, **extra_fields):
+#         """
+#         Create and save a user with the given email and password.
+
+#         Overrides the function from BaseUserManager
+#         """
+#         extra_fields.setdefault('is_staff', False)
+#         extra_fields.setdefault('is_superuser', False)
+#         extra_fields.setdefault('is_active', True)
+#         return self._create_user(email, password, **extra_fields)
+
+#     def create_superuser(self, email, password, **extra_fields):
+#         """
+#         Create and save a super user with the given email and password.
+
+#         Overrides the function from BaseUserManager
+#         """
+#         extra_fields.setdefault('is_staff', True)
+#         extra_fields.setdefault('is_superuser', True)
+
+#         if extra_fields.get('is_staff') is not True:
+#             raise ValueError('Superuser must have is_staff=True.')
+#         if extra_fields.get('is_superuser') is not True:
+#             raise ValueError('Superuser must have is_superuser=True.')
+
+#         return self._create_user(email, password, **extra_fields)
 
 
+# class AbstractEmailUser(AbstractUser):
+#     """
+#         User Fields:
+#             * id
+#             * email
+#             * first_name
+#             * phone
+#             * is_active,
+#             * is_staff
+#             * last_login
+#         Custom User Model extending Django's AbstractUser model
+#         which updates the following -
+#             * Makes Email the default Username
+#             * Discards username
+
+#     """
+    
+#     email = models.EmailField('email address', unique=True)
+#     username = None
+#     objects = UserManager()
+
+#     USERNAME_FIELD = 'email'
+#     REQUIRED_FIELDS = []
+
+#     def __str__(self):
+#         return self.email
+
+#     __original_email = None
+
+#     def __init__(self, *args, **kwargs):
+#         super(AbstractEmailUser, self).__init__(*args, **kwargs)
+#         self.__original_email = self.email
+
+#     class Meta:
+#         verbose_name = 'user'
+#         verbose_name_plural = 'users'
+#         abstract = True
+
+#     def full_name(self):
+#         full_name = "%s %s" % (self.first_name, self.last_name)
+#         return full_name.strip()
+
+
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
 
 class UserManager(BaseUserManager):
     """
-        Manager for :model:`account.User` extending from Base User Manager
+    Manager for :model:`account.User` extending from Base User Manager
     """
     use_in_migrations = True
 
-    def _create_user(self, email, password, **extra_fields):
+    def _create_user(self, email=None, phone=None, password=None, **extra_fields):
         """
-        Create and save a user with the given email and password.
+        Create and save a user with the given email or phone and password.
 
         Overrides the function from BaseUserManager
         """
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        if not email and not phone:
+            raise ValueError("At least one of email or phone must be set")
+
+        if email:
+            email = self.normalize_email(email)
+            extra_fields.setdefault("email", email)
+        else:
+            extra_fields.setdefault("phone", phone)
+
+        user = self.model(**extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email=None, phone=None, password=None, **extra_fields):
         """
-        Create and save a user with the given email and password.
+        Create and save a user with the given email or phone and password.
 
         Overrides the function from BaseUserManager
         """
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
         extra_fields.setdefault('is_active', True)
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(email, phone, password, **extra_fields)
 
-    def create_superuser(self, email, password, **extra_fields):
+    def create_superuser(self, email=None, phone=None, password=None, **extra_fields):
         """
-        Create and save a super user with the given email and password.
+        Create and save a super user with the given email or phone and password.
 
         Overrides the function from BaseUserManager
         """
@@ -55,27 +155,28 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(email, phone, password, **extra_fields)
 
-
-class AbstractEmailUser(AbstractUser):
+class AbstractEmailPhoneUser(AbstractUser):
     """
-        User Fields:
-            * id
-            * email
-            * first_name
-            * phone
-            * is_active,
-            * is_staff
-            * last_login
-        Custom User Model extending Django's AbstractUser model
-        which updates the following -
-            * Makes Email the default Username
-            * Discards username
+    User Fields:
+        * id
+        * email
+        * first_name
+        * last_name
+        * phone
+        * is_active
+        * is_staff
+        * last_login
+    Custom User Model extending Django's AbstractUser model
+    which updates the following -
+        * Makes Email the default Username
+        * Discards username
 
     """
-    email = models.EmailField('email address', unique=True)
     
+    email = models.EmailField('email address', unique=True, blank=True, null=True)
+    phone = models.CharField('phone number', max_length=15, unique=True, blank=True, null=True)
     username = None
     objects = UserManager()
 
@@ -83,12 +184,12 @@ class AbstractEmailUser(AbstractUser):
     REQUIRED_FIELDS = []
 
     def __str__(self):
-        return self.email
+        return str(self.phone) or str(self.email)
 
     __original_email = None
 
     def __init__(self, *args, **kwargs):
-        super(AbstractEmailUser, self).__init__(*args, **kwargs)
+        super(AbstractEmailPhoneUser, self).__init__(*args, **kwargs)
         self.__original_email = self.email
 
     class Meta:
@@ -100,9 +201,8 @@ class AbstractEmailUser(AbstractUser):
         full_name = "%s %s" % (self.first_name, self.last_name)
         return full_name.strip()
 
-
-class User(AbstractEmailUser,TimeStampedModel):
-    phone = models.CharField("Phone", max_length=15, null=True, blank=True)
+class User(AbstractEmailPhoneUser,TimeStampedModel):
+    # phone = models.CharField("Phone", max_length=15, null=True, blank=True)
     profile= models.FileField("Profile Pick", upload_to="profile_photo",null=True, blank=True)
     is_deleted = models.BooleanField(default=False, verbose_name="Is Deleted")
     organization = models.ForeignKey("Organization",related_name="user_organization", on_delete=models.SET_NULL, null=True, blank=True)
@@ -113,7 +213,7 @@ class User(AbstractEmailUser,TimeStampedModel):
         verbose_name_plural = "Users"
 
     def __str__(self):
-        return str(self.get_full_name()) or str(self.email)
+        return str(self.email)+'-'+str(self.phone)
         
     @property
     def full_name(self):
@@ -192,4 +292,18 @@ class Currency(TimeStampedModel):
 
     def __str__(self):
         return self.currency
+
+
+class OTP(TimeStampedModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    otp_code = models.CharField(max_length=6,blank=True, null=True)
+    phone = models.CharField('phone number', max_length=15, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "OTP"
+        verbose_name_plural = "OTPs"
+        db_table = "OTP"
+
+    def __str__(self):
+        return self.phone 
 

@@ -9,6 +9,7 @@ from djoser.conf import settings
 # from djoser.conf import settings as djoser_settings
 # from .models import User
 from account.models import *
+from demofilter.utils import *
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -130,7 +131,7 @@ class UserRSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-            'id', 'email', 'first_name', 'profile', 'organization', 'user_roll',
+            'id', 'email','phone', 'first_name', 'profile', 'organization', 'user_roll',
             'user_image', 'org_id', 'organization_name', 'user_roll_name', 'user_roll_id', 'user_permissions',
         )
     user_image = serializers.SerializerMethodField()
@@ -165,3 +166,42 @@ class UserRSerializer(serializers.ModelSerializer):
             ).select_related('user_permissions')
             return PermSerializer(queryset, many=True).data
         return None
+
+
+################################################ for phone ####################################################
+
+class UserRegistrationPhoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'phone')
+        
+    def create(self, validated_data):
+        print(validated_data)
+        org = Organization.objects.create(brand_name = "" )
+        default_role = UserRoll.objects.create(name='Owner', organization=org, can_edit=False)
+        role= UserRoll.objects.create(name = "Admin", organization=org)
+        prmissions=UserPermissions.objects.filter(permission_status=True)
+        print(prmissions)
+        if prmissions:
+            role.permission.set([i.id for i in prmissions])
+            role.save()
+            default_role.permission.set([i.id for i in prmissions])
+            default_role.save()
+        phone_number = validated_data['phone']
+        user = User(phone=phone_number,organization=org, user_roll=default_role )
+        user.set_password("Admin@1234")
+        user.save()
+        org.owner = user
+        org.save()
+        otp_code = generate_otp()
+        OTP.objects.create(user_id=user.id, phone=phone_number, otp_code=otp_code)
+
+        return user
+
+class LoginPhoneSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    otp = serializers.CharField()
+
+class PhoneOtpSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    

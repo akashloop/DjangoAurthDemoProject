@@ -23,6 +23,10 @@ from rest_framework import viewsets
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from demofilter.mixin import *
+from demofilter.utils import *
+from django.utils import timezone
+from datetime import datetime, timedelta
+
 
 class SignUpView(APIView):
     """
@@ -319,3 +323,80 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+######################################################## For Phone ####################################################
+class SignUpPhoneView(APIView):
+    """
+    url = /api/account/signup/
+    {
+        "phone": "9650036672",
+    }
+
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = UserRegistrationPhoneSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        user_data_serializer = UserRegistrationPhoneSerializer(user)
+        return Response({'data':user_data_serializer.data,'message': "User Created Successfully.  Now perform Login to get your token",},status=status.HTTP_201_CREATED)  
+
+class GenerateOTPView(APIView):
+    def post(self, request, format=None):
+        serializer = PhoneOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data['phone']
+        
+        try:
+            user = User.objects.get(phone=phone)
+            otp = generate_otp()
+            otp_obj = OTP(user=user, phone=phone, otp_code=otp)
+            otp_obj.save()
+            # Implement OTP sending logic here (via SMS, email, etc.)
+            # For demonstration purposes, we'll print the OTP
+            print(f"Generated OTP for {phone}: {otp}")
+            return Response({'detail': 'OTP sent successfully.'}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+class LoginOtpView(APIView):
+    """
+    url = /api/account/user/login/otp/
+    {
+        "phone": "9650036673",
+        "otp": "8972"
+    }
+    """
+    
+    def post(self, request, format=None):
+        serializer = LoginPhoneSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data['phone']
+        otp = serializer.validated_data['otp']
+        
+        try:
+            user = User.objects.get(phone=phone)
+            # otp = generate_otp()
+            # otp_obj = OTP(user=user, phone=phone, otp_code=otp)
+            # otp_obj.save()
+            otp_obj = OTP.objects.filter(user=user, phone=phone).order_by('-created').first()
+
+            if otp_obj and otp_obj.otp_code == otp:
+                current_time = timezone.now()
+                if otp_obj.created + settings.OTP_EXPIRATION_TIME >= current_time:
+                    refresh = RefreshToken.for_user(user)
+                    user_serializer = UserRSerializer(user)
+                    return Response({
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                        "data": user_serializer.data,
+                        "message": "Login Successfully !!!!!"
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({'detail': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)

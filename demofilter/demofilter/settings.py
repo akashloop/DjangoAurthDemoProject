@@ -15,6 +15,7 @@ from datetime import timedelta
 from pathlib import Path
 from os import path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -186,3 +187,10 @@ CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
 # Result Backend (Redis)
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+
+
+# Define OTP expiration time (example: 5 minutes)
+OTP_EXPIRATION_TIME = timedelta(minutes=5)
+
+

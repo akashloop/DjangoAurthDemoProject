@@ -12,7 +12,10 @@ router.register("rolepermissions",UserRolePermissionsViewset, basename='roleperm
 urlpatterns = [
     path('', include(router.urls)),
     path('signup/', SignUpView.as_view(), name='signup'),
+    path('signup/phone/', SignUpPhoneView.as_view(), name='phone_signup'),
     path('user/login/', UserLoginView.as_view(),name="Login"),
+    path('user/login/otp/', LoginOtpView.as_view(),name="Login"),
+    path('generate/otp/', GenerateOTPView.as_view(),name="Login"),
     path('change-password/', PasswordChangeView.as_view(), name='password-change'),
     path('profile/update/', ProfileUpdateView.as_view(), name='profile-update'),
     path('logout/', LogoutView.as_view(), name='logout'),
