@@ -302,15 +302,6 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    # def update(self,request,pk=None):  
-    #     obj=super().get_queryset().exclude(user_role__can_edit=False).get(id=pk)
-    #     serializer=self.get_serializer(obj,data=request.data)
-    #     if serializer.is_valid(raise_exception=True):
-    #         serializer.save()
-    #         return Response(serializer.data)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
     def update(self, request, pk=None):
         # Step 1: Apply filtering
         queryset = super().get_queryset().exclude(user_role__can_edit=False)
@@ -324,7 +315,7 @@ class UserRolePermissionsViewset(viewsets.GenericViewSet,ListModelMixin):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-######################################################## For Phone ####################################################
+######################################################## For Phone Functionality  ####################################################
 class SignUpPhoneView(APIView):
     """
     url = /api/account/signup/
@@ -341,19 +332,33 @@ class SignUpPhoneView(APIView):
         return Response({'data':user_data_serializer.data,'message': "User Created Successfully.  Now perform Login to get your token",},status=status.HTTP_201_CREATED)  
 
 class GenerateOTPView(APIView):
+    """
+    url = api/account/generate/otp/
+    {
+        "phone": "9650036673",
+    }
+    """
     def post(self, request, format=None):
         serializer = PhoneOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         phone = serializer.validated_data['phone']
-        
         try:
             user = User.objects.get(phone=phone)
-            otp = generate_otp()
-            otp_obj = OTP(user=user, phone=phone, otp_code=otp)
-            otp_obj.save()
+            
+            # Try to get an existing unexpired OTP or create a new one
+            otp_obj, created = OTP.objects.get_or_create(
+                user=user,
+                phone=phone,
+                created__gte=timezone.now() - settings.OTP_EXPIRATION_TIME,
+                defaults={'otp_code': generate_otp()}
+            )
+            if not created:
+                # If an unexpired OTP already existed, return an appropriate response
+                return Response({'detail': f"An unexpired OTP already exists for this {user}: {phone}."}, status=status.HTTP_400_BAD_REQUEST)
+            
             # Implement OTP sending logic here (via SMS, email, etc.)
             # For demonstration purposes, we'll print the OTP
-            print(f"Generated OTP for {phone}: {otp}")
+            print(f"Generated OTP for {phone}: {otp_obj.otp_code}")
             return Response({'detail': 'OTP sent successfully.'}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -368,8 +373,7 @@ class LoginOtpView(APIView):
         "phone": "9650036673",
         "otp": "8972"
     }
-    """
-    
+    """  
     def post(self, request, format=None):
         serializer = LoginPhoneSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -378,9 +382,6 @@ class LoginOtpView(APIView):
         
         try:
             user = User.objects.get(phone=phone)
-            # otp = generate_otp()
-            # otp_obj = OTP(user=user, phone=phone, otp_code=otp)
-            # otp_obj.save()
             otp_obj = OTP.objects.filter(user=user, phone=phone).order_by('-created').first()
 
             if otp_obj and otp_obj.otp_code == otp:
@@ -395,6 +396,7 @@ class LoginOtpView(APIView):
                         "message": "Login Successfully !!!!!"
                     }, status=status.HTTP_200_OK)
                 else:
+                    otp_obj.delete()
                     return Response({'detail': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)

@@ -191,6 +191,6 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 
 # Define OTP expiration time (example: 5 minutes)
-OTP_EXPIRATION_TIME = timedelta(minutes=5)
+OTP_EXPIRATION_TIME = timedelta(minutes=2)
 
 
