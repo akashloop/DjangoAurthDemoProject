@@ -26,6 +26,12 @@ from demofilter.mixin import *
 from demofilter.utils import *
 from django.utils import timezone
 from datetime import datetime, timedelta
+import platform
+import socket
+import uuid
+import subprocess
+from subscription.models import UserSubscription, SubscriptionPlan, Device
+
 
 
 class SignUpView(APIView):
@@ -102,11 +108,25 @@ class LogoutView(APIView):
     }
     """
     def post(self, request):
+        user = request.user
         try:
             refresh_token = request.data["refresh_token"]
             token = RefreshToken(refresh_token)
             try:
                 outstanding_token = OutstandingToken.objects.get(token=refresh_token)
+                user_sub = UserSubscription.objects.get(user=user)
+                mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
+                print("MAC Address:", mac_address)
+                imei = subprocess.check_output("adb shell service call iphonesubinfo 1 | awk -F \"'\" '{print $2}'", shell=True)
+                print("IMEI:", imei.strip().decode())
+                if mac_address: 
+                    mac_address = mac_address
+                else:
+                    mac_address =  imei
+                device_count= Device.objects.filter(device_id = mac_address)
+                device_count.delete()
+                user_sub.devices_in_use -= 1
+                user_sub.save()
             except OutstandingToken.DoesNotExist:
                 return Response({"message": "Invalid refresh token."}, status=400)
             BlacklistedToken.objects.create(token=outstanding_token)
@@ -365,7 +385,7 @@ class GenerateOTPView(APIView):
 
 
 
-
+     
 class LoginOtpView(APIView):
     """
     url = /api/account/user/login/otp/
@@ -379,26 +399,43 @@ class LoginOtpView(APIView):
         serializer.is_valid(raise_exception=True)
         phone = serializer.validated_data['phone']
         otp = serializer.validated_data['otp']
-        
         try:
             user = User.objects.get(phone=phone)
             otp_obj = OTP.objects.filter(user=user, phone=phone).order_by('-created').first()
-
-            if otp_obj and otp_obj.otp_code == otp:
-                current_time = timezone.now()
-                if otp_obj.created + settings.OTP_EXPIRATION_TIME >= current_time:
-                    refresh = RefreshToken.for_user(user)
-                    user_serializer = UserRSerializer(user)
-                    return Response({
-                        'refresh': str(refresh),
-                        'access': str(refresh.access_token),
-                        "data": user_serializer.data,
-                        "message": "Login Successfully !!!!!"
-                    }, status=status.HTTP_200_OK)
-                else:
-                    otp_obj.delete()
-                    return Response({'detail': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            user_sub = UserSubscription.objects.get(user=user)
+            max_device = user_sub.subscription_plan.max_devices
+            mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
+            print("MAC Address:", mac_address)
+            imei = subprocess.check_output("adb shell service call iphonesubinfo 1 | awk -F \"'\" '{print $2}'", shell=True)
+            print("IMEI:", imei.strip().decode())
+            if mac_address: 
+                mac_address = mac_address
             else:
-                return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+                mac_address =  imei
+            device_count, created = Device.objects.get_or_create(device_id = mac_address)
+            if max_device:
+                if max_device>=user_sub.devices_in_use:
+                    if otp_obj and otp_obj.otp_code == otp:
+                        current_time = timezone.now()
+                        if otp_obj.created + settings.OTP_EXPIRATION_TIME >= current_time:
+                            refresh = RefreshToken.for_user(user)
+                            user_serializer = UserRSerializer(user)
+                            if created:
+                                user_sub.devices_in_use += 1
+                                user_sub.save()
+                            return Response({
+                                'refresh': str(refresh),
+                                'access': str(refresh.access_token),
+                                "data": user_serializer.data,
+                                "message": "Login Successfully !!!!!"
+                            }, status=status.HTTP_200_OK)
+                        else:
+                            otp_obj.delete()
+                            return Response({'detail': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({'detail': f'user alreay login in {user_sub.devices_in_use} Devies..!'}, status=status.HTTP_400_BAD_REQUEST)
+            
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)

@@ -14,6 +14,13 @@ from rest_framework import  status
 from .serializers import *
 from datetime import timedelta
 from django.utils import timezone
+import platform
+import socket
+import uuid
+import subprocess
+
+
+
 
 
 class SubscriptionPlanViewet(viewsets.GenericViewSet, ListModelMixin):
@@ -155,6 +162,7 @@ class UserSubscriptionHistoryViewet(viewsets.GenericViewSet, ListModelMixin):
         return UserSubscriptionHistorySerializer
 
     def get_queryset(self):
+        
         qs = super().get_queryset()
         return qs
 
@@ -168,6 +176,10 @@ class UserSubscriptionHistoryViewet(viewsets.GenericViewSet, ListModelMixin):
 
     @action(detail=False, methods=['get'])
     def user_subscription(self,request):
+        mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
+        print("MAC Address:", mac_address)
+        imei = subprocess.check_output("adb shell service call iphonesubinfo 1 | awk -F \"'\" '{print $2}'", shell=True)
+        print("IMEI:", imei.strip().decode())
         user = request.user
         try: 
             qs = super().get_queryset()
