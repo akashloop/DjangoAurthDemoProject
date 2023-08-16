@@ -45,18 +45,20 @@ CORE_APPS = [
     "django.contrib.staticfiles",
 ]
 THIRDPARTY_APPS = [
-    'account',
-    'ekyc',
-    'location',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'djoser',
-    
-
 ]
 
-INSTALLED_APPS = CORE_APPS + THIRDPARTY_APPS
+CREATED_APP = [
+    'account',
+    'ekyc',
+    'location',
+    'subscription',
+]
+
+INSTALLED_APPS = CORE_APPS + THIRDPARTY_APPS + CREATED_APP
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

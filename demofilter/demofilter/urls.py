@@ -23,5 +23,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('api/account/', include(('account.urls'),namespace='account')),
     path('api/ekyc/', include(('ekyc.urls'),namespace='ekyc')),
+    path('api/subscription/', include(('subscription.urls'),namespace='subscription')),
     path('api/location/', include(('location.urls'),namespace='location')),
 ]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) +  static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
