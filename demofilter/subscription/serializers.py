@@ -18,6 +18,12 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         model = UserSubscription
         fields = '__all__'
 
+class UserSubscriptionCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserSubscription
+        fields = '__all__'
+
 class UserCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

@@ -245,12 +245,29 @@ class UserLoginView(APIView):
             user = User.objects.get(email=data["email"])
             # Use the UserSerializer to serialize the user data
             user_serializer = UserRSerializer(user)
-            return Response({
-                "tokens": token,
-                "data": user_serializer.data,
-                "message": "Login Successfully !!!!!"
-            }, status=status.HTTP_200_OK)
-
+            user_sub = UserSubscription.objects.get(user=user)
+            max_device = user_sub.subscription_plan.max_devices
+            mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
+            print("MAC Address:", mac_address)
+            imei = subprocess.check_output("adb shell service call iphonesubinfo 1 | awk -F \"'\" '{print $2}'", shell=True)
+            print("IMEI:", imei.strip().decode())
+            if mac_address: 
+                mac_address = mac_address
+            else:
+                mac_address =  imei
+            device_count, created = Device.objects.get_or_create(device_id = mac_address)
+            if max_device:
+                if max_device>=user_sub.devices_in_use:
+                    if created:
+                            user_sub.devices_in_use += 1
+                            user_sub.save()
+                    return Response({
+                        "tokens": token,
+                        "data": user_serializer.data,
+                        "message": "Login Successfully !!!!!"
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({'detail': f'user alreay login in {user_sub.devices_in_use} Devies..!'}, status=status.HTTP_400_BAD_REQUEST) 
         except Exception as e:
             print(e)
             return Response({"status": 300, "message": "Invalid Login !!!!!!!!!!!!!"})
@@ -435,7 +452,6 @@ class LoginOtpView(APIView):
                     else:
                         return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    return Response({'detail': f'user alreay login in {user_sub.devices_in_use} Devies..!'}, status=status.HTTP_400_BAD_REQUEST)
-            
+                    return Response({'detail': f'user alreay login in {user_sub.devices_in_use} Devies..!'}, status=status.HTTP_400_BAD_REQUEST)   
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)

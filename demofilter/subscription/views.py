@@ -84,6 +84,8 @@ class UserSubscriptionViewet(viewsets.GenericViewSet, ListModelMixin):
     def get_serializer_class(self):
         if self.action in ['list']:
             return UserSubscriptionSerializer
+        elif self.action in ['create']:
+            return UserSubscriptionCreateSerializer
         return UserSubscriptionSerializer
 
     def get_queryset(self):
@@ -94,12 +96,14 @@ class UserSubscriptionViewet(viewsets.GenericViewSet, ListModelMixin):
         params=request.data
         userdata = self.request.user
         user_subscription = UserSubscription.objects.filter(user=userdata,status=True).first()
-        current_time = timezone.now()
-        subscription_duration = timedelta(days=user_subscription.subscription_plan.duration)
-        subscription_start_time = user_subscription.created
-        subscription_expiration_time = subscription_start_time + subscription_duration
-        if subscription_expiration_time >= current_time:
-            return Response({"message":f" This {userdata} already have subscription plan...!"}, status=status.HTTP_400_BAD_REQUEST)   
+        print(user_subscription)
+        if user_subscription:
+            current_time = timezone.now()
+            subscription_duration = timedelta(days=user_subscription.subscription_plan.duration)
+            subscription_start_time = user_subscription.created
+            subscription_expiration_time = subscription_start_time + subscription_duration
+            if subscription_expiration_time >= current_time:
+                return Response({"message":f" This {userdata} already have subscription plan...!"}, status=status.HTTP_400_BAD_REQUEST)   
         try: 
             serializer=self.get_serializer(data=params)
             if serializer.is_valid(raise_exception=True):
