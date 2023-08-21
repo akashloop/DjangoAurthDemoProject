@@ -13,7 +13,9 @@ from rest_framework import viewsets
 from rest_framework import  status 
 from .serializers import *
 from .tasks import ocr_process
-
+from .admin import *
+from django.http import HttpResponse
+from openpyxl import Workbook
 
 class DocumentViewet(viewsets.GenericViewSet, ListModelMixin):
     # permission_classes = [IsAuthenticated]
@@ -132,3 +134,34 @@ class KYCKYBViewet(viewsets.GenericViewSet, ListModelMixin):
             return Response({"message":"Data  deleted successfully"})
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def export_data(self, request):
+        print(request)
+        file_format = request.query_params.get('file_format')  # Default to CSV if no format specified
+        print("file_format", file_format)
+
+        if file_format not in ['csv', 'xls', 'xlsx', 'json', 'tsv']:
+            return Response({'error': 'Invalid format'}, status=status.HTTP_400_BAD_REQUEST)
+
+        resource = KYCKYBEntryResource()
+        dataset = resource.export()
+
+        response = HttpResponse(content_type=f'text/{file_format}')
+        response['Content-Disposition'] = f'attachment; filename="kyckyb-sheet.{file_format}"'
+
+        if file_format == 'csv':
+            response.write(dataset.csv)
+        elif file_format == 'xls':
+            response.write(dataset.xls)
+        elif file_format == 'xlsx':
+            response.write(dataset.xlsx)
+        elif file_format == 'json':
+            response.write(dataset.json)
+        elif file_format == 'tsv':
+            response.write(dataset.tsv)
+        return response
+
+   
+
+    

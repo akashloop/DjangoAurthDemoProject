@@ -49,6 +49,7 @@ THIRDPARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'djoser',
+    'import_export',
 ]
 
 CREATED_APP = [

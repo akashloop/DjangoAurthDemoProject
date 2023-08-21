@@ -11,6 +11,9 @@ router.register("ekycs",KYCKYBViewet, basename='ekyc'),
 
 urlpatterns = [  
     path('', include(router.urls)),
+
+    
+    
     
 ]
 app_name = 'ekyc'
